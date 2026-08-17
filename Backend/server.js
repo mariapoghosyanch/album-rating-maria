@@ -90,19 +90,20 @@ function seedDatabase() {
         .prepare("SELECT COUNT(*) AS count FROM reviews")
         .get().count;
 
-    if (userCount === 0) {
-        const insertUser = db.prepare(`
-            INSERT INTO users (username)
-            VALUES (?)
-        `);
+    //if (userCount === 0) {
+    const insertUser = db.prepare(`
+        INSERT INTO users (username)
+        VALUES (?)
+    `);
 
-        insertUser.run("Nina");
-        insertUser.run("Luca");
+    //insertUser.run("Nina");
+    //insertUser.run("Luca");
+    //insertUser.run("Max");
 
-        console.log("✅ Dummy-User wurden eingefügt.");
-    }
+    console.log("✅ Dummy-User wurden eingefügt.");
+    //}
 
-    if (albumCount === 0) {
+    //if (albumCount === 0) {
         const insertAlbum = db.prepare(`
             INSERT INTO albums (
                 title,
@@ -113,7 +114,7 @@ function seedDatabase() {
             VALUES (?, ?, ?, ?)
         `);
 
-        insertAlbum.run(
+       /* insertAlbum.run(
             "In Rainbows",
             "Radiohead",
             "/images/in-rainbows.jpg",
@@ -146,12 +147,19 @@ function seedDatabase() {
             "Charli XCX",
             "/images/brat.png",
             "2026-08-05 10:00:00"
+        );*/
+
+        insertAlbum.run(
+            "Abbey Road",
+            "The Beatles",
+            "/images/abbey-road.jpg",
+            "2026-08-17 20:45:00"
         );
 
         console.log("✅ Beispielalben wurden eingefügt.");
     }
 
-    if (reviewCount === 0) {
+    //if (reviewCount === 0) {
         const insertReview = db.prepare(`
             INSERT INTO reviews (
                 album_id,
@@ -164,7 +172,7 @@ function seedDatabase() {
         `);
 
         const reviews = [
-            [
+            /*[
                 1,
                 1,
                 5,
@@ -234,6 +242,14 @@ function seedDatabase() {
                 "Nicht mein typisches Genre, aber dennoch eine gute Produktion.",
                 "2026-08-05 12:30:00"
             ]
+           [
+                6,
+                3,
+                5,
+                "Love it!",
+                "2026-08-17 20:55:00"
+            ],
+
         ];
 
         const insertAllReviews = db.transaction((reviewList) => {
@@ -242,13 +258,13 @@ function seedDatabase() {
             }
         });
 
-        insertAllReviews(reviews);
+        insertAllReviews(reviews);*/
 
-        console.log("✅ Beispielreviews wurden eingefügt.");
-    }
-}
+        //console.log("✅ Beispielreviews wurden eingefügt.");
 
-seedDatabase();
+
+
+//seedDatabase();
 
 // ------------------------------------------------------------
 // API-Routen
@@ -281,7 +297,7 @@ app.get("/api/albums", (req, res) => {
             error: "Die Alben konnten nicht geladen werden."
         });
     }
-});
+}),
 
 // Liefert ein einzelnes Album inklusive seiner Reviews.
 app.get("/api/albums/:id", (req, res) => {
@@ -342,7 +358,7 @@ app.get("/api/albums/:id", (req, res) => {
             error: "Das Album konnte nicht geladen werden."
         });
     }
-});
+}),
 
 // Liefert die neuesten Reviews für die Startseite.
 app.get("/api/reviews/latest", (req, res) => {
@@ -376,18 +392,87 @@ app.get("/api/reviews/latest", (req, res) => {
             error: "Die Reviews konnten nicht geladen werden."
         });
     }
-});
+}),
 
-// ------------------------------------------------------------
-// Debug-Route
-// ------------------------------------------------------------
-app.get("/api/debug", (req, res) => {
+app.get("/api/users", (req, res) => {
+    try {
+        const users = db.prepare(`
+            SELECT
+                users.id,
+                users.username
+            FROM users
+            ORDER BY users.username DESC
+        `).all();
 
-    res.json({
-        message: "Server läuft erfolgreich."
-    });
+        res.json(users);
+    } catch (error) {
+        console.error(error);
 
-});
+        res.status(500).json({
+            error: "Die Users konnten nicht geladen werden."
+        });
+    }
+}),
+
+app.get("/api/users/:id/reviews", (req, res) => {
+    try {
+
+
+
+        const userId = Number(req.params.id);
+
+        if (!Number.isInteger(userId)) {
+            return res.status(400).json({
+                error: "Die User-ID ist ungültig."
+            });
+        }
+
+        const user = db.prepare(`
+            SELECT
+                users.id,
+                users.username
+            FROM users
+            LEFT JOIN reviews
+                ON users.id = reviews.user_id
+            WHERE users.id = ?
+            GROUP BY users.id
+        `).get(userId);
+
+        if (!user) {
+            return res.status(404).json({
+                error: "Der User wurde nicht gefunden."
+            });
+        }
+
+        const reviews = db.prepare(`
+            SELECT
+                reviews.id,
+                reviews.rating,
+                reviews.review_text,
+                reviews.created_at,
+                albums.id AS album_id,
+                albums.title AS album_title,
+                albums.artist,
+                albums.image_path
+            FROM reviews
+            JOIN albums
+                ON reviews.album_id = albums.id
+            WHERE reviews.user_id = ?
+            ORDER BY reviews.created_at DESC
+        `).all(userId);
+
+        res.json({
+            ...user,
+            reviews
+        });
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            error: "Der User konnte nicht geladen werden."
+        });
+    }
+}),
 
 // ------------------------------------------------------------
 // Server starten
@@ -399,5 +484,6 @@ app.listen(PORT, () => {
     console.log(`🌐 Webseite: http://localhost:${PORT}`);
     console.log(`📀 Alben:    http://localhost:${PORT}/api/albums`);
     console.log(`⭐ Reviews:  http://localhost:${PORT}/api/reviews/latest`);
+    console.log('Users: http://localhost:3000/api/users');
     console.log("-------------------------------------------");
-});
+})]
